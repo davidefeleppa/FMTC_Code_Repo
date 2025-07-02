@@ -129,21 +129,18 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
         % Calculate prob of filling orders and and respective binary operator 
         prob_a = min(exp(-kappa*(delta_a - delta_tilde_a)), 1);
         prob_b = min(exp(-kappa*(delta_b - delta_tilde_b)), 1);
-        
         filled_trade_a = (fill_a <= prob_a) & (Q(:,i) ~= (qmin+1));
         filled_trade_b = (fill_b <= prob_b) & (Q(:,i) ~= (qmax-1));
-        
         filled_trade_a_tilde = (fill_a <= 1-prob_a) & (Q_tilde(:,i) ~= (qmin+1));
         filled_trade_b_tilde = (fill_b <= 1-prob_b) & (Q_tilde(:,i) ~= (qmax-1));
         
         % Update inventories
         Q(:,i+1) = Q(:,i) - filled_trade_a.*arrival_a + filled_trade_b.*arrival_b;
-        Q_tilde(:,i+1) = Q_tilde(:,i) - filled_trade_a_tilde.*arrival_a + (filled_trade_b_tilde).*arrival_b;
+        Q_tilde(:,i+1) = Q_tilde(:,i) - (1-filled_trade_a).*arrival_a + (1-filled_trade_b).*arrival_b;
         
         % Update cashes
         X(:,i+1) = X(:,i) + filled_trade_a.*arrival_a.*(S(:,i) + delta_a) ...
                     - filled_trade_b.*arrival_b.*(S(:,i) - delta_b);
-        
         X_tilde(:,i+1) = X_tilde(:,i) + filled_trade_a_tilde.*arrival_a.*(S(:,i) + delta_tilde_a) ...
                     - filled_trade_b_tilde.*arrival_b.*(S(:,i) - delta_tilde_b);
 
@@ -154,13 +151,16 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
     for s = 1:sims
         intQ(s) = sum(Q(s,:).^2)/Nt;
     end
-    obj_follower = pnl_euler - a*Q(:,end).^2 - phi*intQ;
+    obj = pnl_euler - a*Q(:,end).^2 - phi*intQ;
 
     pnl_euler_tilde = X_tilde(:,end) + Q_tilde(:,end).*(S(:,end) + (a-b)/2 - beta*Q_tilde(:,end) - Z(:,end));
     for s = 1:sims
         intQ_tilde(s) = sum(Q_tilde(s,:).^2)/Nt;
     end
-    obj_leader = pnl_euler_tilde - a*Q_tilde(:,end).^2 - phi*intQ_tilde;
+    obj_tilde = pnl_euler_tilde - a*Q_tilde(:,end).^2 - phi*intQ_tilde;
+
+    obj_follower = obj;
+    obj_leader  = obj_tilde;
 
     
     % Display results if desired
@@ -176,9 +176,80 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
         fprintf('Terminal Q mean = %.4f\tTerminal Q sd = %.4f\n', mean(Q(:,end)), std(Q(:,end)));
         fprintf('Terminal X mean = %.4f\tTerminal X sd = %.4f\n', mean(X(:,end)), std(X(:,end)));
         fprintf('Terminal PnL mean = %.4f\tTerminal PnL sd = %.4f\n', mean(pnl_euler), std(pnl_euler));
-        fprintf('Terminal objective mean = %.4f\tTerminal objective sd = %.4f\n', mean(obj_follower), std(obj_follower));
+        fprintf('Terminal objective mean = %.4f\tTerminal objective sd = %.4f\n', mean(obj), std(obj));
         
-        plot_time_series_results(time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin);
+        % Plot results
+        nmin = 1;
+        nmax = 1000;
+        figure;
+        subplot(4,2,1);
+        plot(time, Q(nmin:nmax,:)');
+        hold on;
+        plot(time, repmat(qmax,1,length(time)), '--');
+        plot(time, repmat(qmin,1,length(time)), '--');
+        ylabel('$Q_t$', 'Interpreter', 'latex');
+        grid on;
+        
+        subplot(4,2,2);
+        plot(time, Q_tilde(nmin:nmax,:)');
+        ylabel('$\tilde{Q}_t$', 'Interpreter', 'latex');
+        grid on;
+        
+        % Plot delta a and tilde delta a
+        subplot(4,2,3);
+        plot(time, deltas_a(nmin:nmax,:)');
+        ylabel('$\delta^{*,a}_t$', 'Interpreter', 'latex');
+        grid on;
+        alpha(0.3);
+        
+        subplot(4,2,4);
+        plot(time, tildes_a(nmin:nmax,:)');
+        ylabel('$\tilde{\delta}^{a}_t$', 'Interpreter', 'latex');
+        grid on;
+        alpha(0.3);
+        
+        % Plot delta b and tilde delta b
+        subplot(4,2,5);
+        plot(time, deltas_b(nmin:nmax,:)');
+        ylabel('$\delta^{*,b}_t$', 'Interpreter', 'latex');
+        grid on;
+        alpha(0.3);
+        
+        subplot(4,2,6);
+        plot(time, tildes_b(nmin:nmax,:)');
+        ylabel('$\tilde{\delta}^{b}_t$', 'Interpreter', 'latex');
+        grid on;
+        alpha(0.3);
+        
+        % Plot spreads
+        subplot(4,2,7);
+        plot(time, deltas_a(nmin:nmax,:)' + deltas_b(nmin:nmax,:)');
+        xlabel('$t$', 'Interpreter', 'latex');
+        ylabel('$\delta^{*,a}_t+\delta^{*,b}_t$', 'Interpreter', 'latex');
+        grid on;
+        alpha(0.3);
+        
+        subplot(4,2,8);
+        plot(time, tildes_a(nmin:nmax,:)' + tildes_b(nmin:nmax,:)');
+        xlabel('$t$', 'Interpreter', 'latex');
+        ylabel('$\tilde{\delta}^{a}_t+\tilde{\delta}^{b}_t$', 'Interpreter', 'latex');
+        grid on;
+        alpha(0.3);
+        
+        % Adjust layout
+        set(gcf, 'Color', 'w'); % White background
+        set(gcf, 'Position', [100 100 900 900]); % Set figure size
+        
+        % Add legends where needed
+        subplot(4,2,3);
+        legend('Sim 1', 'Sim 2', 'Sim 3', 'Location', 'best');
+        
+        subplot(4,2,5);
+        legend('Sim 1', 'Sim 2', 'Sim 3', 'Location', 'best');
+        
+        % Tight layout
+        h = findobj(gcf, 'type', 'axes');
+        set(h, 'FontSize', 12); % Consistent font size
     end
 end
 
