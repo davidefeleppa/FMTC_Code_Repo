@@ -1,4 +1,4 @@
-function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)    
+function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Euler(A, B, beta, sims)    
     % Stock Price
     sigma = 1;
     S0 = 100;
@@ -10,17 +10,10 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
     % Inventory
     qmax = 10;
     qmin = -qmax;
-    
-    % Noise terms
-    sigma_Z = 0; 
 
-    
-    kappa = 2; % Fill probability sensitivity 
-    eta = 0.01; % TICK SIZE
-    % a is given (a = 0) - Reference levels to ask
-    b = a; % Reference level to bid
-    % beta is given (beta = 0.05) - Inventory level's impact on quoting
-    
+    % Fill probability sensitivity 
+    kappa = 2; 
+
     % Penalties
     phi = 0.01;
     gamma = 0.03;
@@ -31,11 +24,9 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
     % Time scale
     T = 1;
     Nt = 1000; % Number of steps
-    sims = 10000; % Number of monte carlo simulations
     dt = T/Nt; % Time step size
     euler_steps = 1000000; % Euler steps
     time = linspace(0, T, Nt+1); % Time axis
-    
     
     % Initialize arrays
     X = zeros(sims, Nt+1); % Cash
@@ -44,11 +35,8 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
     Q_tilde = zeros(sims, Nt+1); % Competitors Inventory
     S = zeros(sims, Nt+1); % Stock price path
     S(:,1) = S0; % Start stock at S0
-    Z = zeros(sims, Nt+1); % Noise terms
-    intQ = zeros(sims, 1);  % Q Integral
-    intQ_tilde = zeros(sims, 1);  % I dont know
 
-    % Bid ask qouotes of us and the competitor
+    % Bid ask quotes of us and the competitor
     deltas_a = zeros(sims, Nt+1);
     deltas_b = zeros(sims, Nt+1);
     tildes_a = zeros(sims, Nt+1);
@@ -58,10 +46,9 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
     arrivaltimes_a = zeros(sims, Nt+1);
     arrivaltimes_b = zeros(sims, Nt+1);
     
-    
     % Run Euler scheme to calculate g as a function of time step and inventory
     % g(t,q)
-    g = euler_scheme(euler_steps, T, qmax, qmin, a, b, gamma, beta, kappa, phi, lambda_a, lambda_b);
+    g = euler_scheme(euler_steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, lambda_a, lambda_b);
     
     % Round all_inventories to the cent
     all_inventories_list = round(all_inventories, 2);
@@ -79,7 +66,7 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
         G_down = zeros(sims, 1);
         G_up = zeros(sims, 1);
         
-        % For each sumlation (sim)
+        % For each simulation (sim)
         for sim = 1:sims
             % Get inventory level 
             q = Q(sim,i);
@@ -101,14 +88,13 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
         end
         
         % Calculate deltas
-        [delta_a, delta_b] = calculate_deltas_euler(t, Q(:,i), Q_tilde(:,i), Z(:,i), G, G_down, G_up, ...
-                             kappa, a, b, beta, true);
+        [delta_a, delta_b] = calculate_deltas_euler(Q_tilde(:,i), G, G_down, G_up, ...
+                             kappa, A(i), B(i), beta, true);
         % Save deltas
         deltas_a(:, i) = delta_a;
         deltas_b(:, i) = delta_b;
         
         % Update Z and S (Brownian motions)
-        Z(:,i+1) = Z(:,i) + sigma_Z * sqrt(dt) * randn(sims, 1);
         S(:,i+1) = S(:,i) + sigma * sqrt(dt) * randn(sims, 1);
         
         % Simulate order arrivals
@@ -121,8 +107,8 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
         fill_b = rand(sims, 1);
         
         % Get competitor bid ask quotes
-        delta_tilde_a = a - beta * Q_tilde(:,i) - Z(:,i);
-        delta_tilde_b = b + beta * Q_tilde(:,i) + Z(:,i);
+        delta_tilde_a = A(i) - beta * Q_tilde(:,i);
+        delta_tilde_b = B(i) + beta * Q_tilde(:,i);
         tildes_a(:,i) = delta_tilde_a;
         tildes_b(:,i) = delta_tilde_b;
         
@@ -146,43 +132,26 @@ function [obj_follower, obj_leader] = MM_Euler(a, beta, disp_results)
         
         X_tilde(:,i+1) = X_tilde(:,i) + filled_trade_a_tilde.*arrival_a.*(S(:,i) + delta_tilde_a) ...
                     - filled_trade_b_tilde.*arrival_b.*(S(:,i) - delta_tilde_b);
-
     end
     
     % Calculate final PnL and objectives
-    pnl_euler = X(:,end) + Q(:,end).*(S(:,end) + (a-b)/2 - beta*Q_tilde(:,end) - Z(:,end));
-    for s = 1:sims
-        intQ(s) = sum(Q(s,:).^2)/Nt;
-    end
-    obj_follower = pnl_euler - a*Q(:,end).^2 - phi*intQ;
-
-    pnl_euler_tilde = X_tilde(:,end) + Q_tilde(:,end).*(S(:,end) + (a-b)/2 - beta*Q_tilde(:,end) - Z(:,end));
-    for s = 1:sims
-        intQ_tilde(s) = sum(Q_tilde(s,:).^2)/Nt;
-    end
-    obj_leader = pnl_euler_tilde - a*Q_tilde(:,end).^2 - phi*intQ_tilde;
-
     
-    % Display results if desired
-    if (disp_results == true)
-        % Copy last values for plotting
-        deltas_a(:,end) = deltas_a(:,end-1);
-        deltas_b(:,end) = deltas_b(:,end-1);
-        tildes_a(:,end) = tildes_a(:,end-1);
-        tildes_b(:,end) = tildes_b(:,end-1);
-        
-        % Display results
-        fprintf('Reference MM Results');
-        fprintf('Terminal Q mean = %.4f\tTerminal Q sd = %.4f\n', mean(Q(:,end)), std(Q(:,end)));
-        fprintf('Terminal X mean = %.4f\tTerminal X sd = %.4f\n', mean(X(:,end)), std(X(:,end)));
-        fprintf('Terminal PnL mean = %.4f\tTerminal PnL sd = %.4f\n', mean(pnl_euler), std(pnl_euler));
-        fprintf('Terminal objective mean = %.4f\tTerminal objective sd = %.4f\n', mean(obj_follower), std(obj_follower));
-        
-        plot_time_series_results(time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin);
-    end
+    % Calculate final PnL and objectives
+    % For follower
+    final_price_follower = S(:,end) - beta*Q_tilde(:,end);
+    pnl = X(:,end) + Q(:,end).*final_price_follower;
+    intQ = sum(Q.^2, 2)*dt/T; 
+    obj_follower = pnl - A(end)*Q(:,end).^2 - phi*intQ;
+    
+    % For leader
+    final_price_leader = S(:,end) - beta*Q_tilde(:,end);
+    pnl_tilde = X_tilde(:,end) + Q_tilde(:,end).*final_price_leader;
+    intQ_tilde = sum(Q_tilde.^2, 2)*dt/T;
+    obj_leader = pnl_tilde - A(end)*Q_tilde(:,end).^2 - phi*intQ_tilde;
+    
 end
 
-function g = euler_scheme(steps, T, qmax, qmin, a, b, gamma, beta, kappa, phi, lambda_a, lambda_b)
+function g = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, lambda_a, lambda_b)
     % Initialize variables
     h = T / steps;
     all_inventories = qmax:-1:qmin; 
@@ -191,48 +160,52 @@ function g = euler_scheme(steps, T, qmax, qmin, a, b, gamma, beta, kappa, phi, l
     % Terminal condition
     for iq = 1:length(all_inventories)
         q = all_inventories(iq);
-        g(end, iq) = ((a-b)/2)*q - (gamma-beta/2)*(q^2);
+        g(end, iq) = ((A(end)-B(end))/2)*q - (gamma-beta/2)*(q^2);
     end
     
     % Time stepping (backward)
     for i = 1:(steps-1)
+        t_idx = steps - i + 1;  % Current time index in backward scheme
+        a = A(t_idx);
+        b = B(t_idx);
+        
         for iq = 1:length(all_inventories)
             q = all_inventories(iq);
             
             % Interior points
             if iq ~= 1 && iq ~= length(all_inventories)
-                c_star_a = max(1/kappa - g(end-i+1, iq-1) + g(end-i+1, iq), a - beta/2);
-                c_star_b = max(1/kappa - g(end-i+1, iq+1) + g(end-i+1, iq), b - beta/2);
+                c_star_a = max(1/kappa - g(t_idx, iq-1) + g(t_idx, iq), a - beta/2);
+                c_star_b = max(1/kappa - g(t_idx, iq+1) + g(t_idx, iq), b - beta/2);
                 
-                g(end-i, iq) = g(end-i+1, iq) + h * ( ...
+                g(t_idx-1, iq) = g(t_idx, iq) + h * ( ...
                     -phi*(q^2) ...
                     + (lambda_a-lambda_b)*beta*q ...
-                    + lambda_a*exp(-kappa*(c_star_a + beta/2 - a))*(c_star_a + g(end-i+1,iq-1) - g(end-i+1,iq)) ...
-                    + lambda_b*exp(-kappa*(c_star_b + beta/2 - b))*(c_star_b + g(end-i+1,iq+1) - g(end-i+1,iq)));
+                    + lambda_a*exp(-kappa*(c_star_a + beta/2 - a))*(c_star_a + g(t_idx,iq-1) - g(t_idx,iq)) ...
+                    + lambda_b*exp(-kappa*(c_star_b + beta/2 - b))*(c_star_b + g(t_idx,iq+1) - g(t_idx,iq)));
             
             % Lower boundary (iq == 1)
             elseif iq == 1
-                c_star_b = max(1/kappa - g(end-i+1, iq+1) + g(end-i+1, iq), b - beta/2);
+                c_star_b = max(1/kappa - g(t_idx, iq+1) + g(t_idx, iq), b - beta/2);
                 
-                g(end-i, iq) = g(end-i+1, iq) + h * ( ...
+                g(t_idx-1, iq) = g(t_idx, iq) + h * ( ...
                     -phi*(q^2) ...
                     + (lambda_a-lambda_b)*beta*q ...
-                    + lambda_b*exp(-kappa*(c_star_b + beta/2 - b))*(c_star_b + g(end-i+1,iq+1) - g(end-i+1,iq)));
+                    + lambda_b*exp(-kappa*(c_star_b + beta/2 - b))*(c_star_b + g(t_idx,iq+1) - g(t_idx,iq)));
             
             % Upper boundary (iq == end)
             else
-                c_star_a = max(1/kappa - g(end-i+1, iq-1) + g(end-i+1, iq), a - beta/2);
+                c_star_a = max(1/kappa - g(t_idx, iq-1) + g(t_idx, iq), a - beta/2);
                 
-                g(end-i, iq) = g(end-i+1, iq) + h * ( ...
+                g(t_idx-1, iq) = g(t_idx, iq) + h * ( ...
                     -phi*(q^2) ...
                     + (lambda_a-lambda_b)*beta*q ...
-                    + lambda_a*exp(-kappa*(c_star_a + beta/2 - a))*(c_star_a + g(end-i+1,iq-1) - g(end-i+1,iq)));
+                    + lambda_a*exp(-kappa*(c_star_a + beta/2 - a))*(c_star_a + g(t_idx,iq-1) - g(t_idx,iq)));
             end
         end
     end
 end
 
-function [delta_a, delta_b] = calculate_deltas_euler(t, q, q_tilde, z, gt, gt_q_minus, gt_q_plus, kappa, a, b, beta, take_maximum)
+function [delta_a, delta_b] = calculate_deltas_euler(q_tilde, gt, gt_q_minus, gt_q_plus, kappa, a, b, beta, take_maximum)
     % Calculate c_hat values
     c_hat_a = 1/kappa - gt_q_minus + gt;
     c_hat_b = 1/kappa - gt_q_plus + gt;
@@ -247,8 +220,8 @@ function [delta_a, delta_b] = calculate_deltas_euler(t, q, q_tilde, z, gt, gt_q_
     end
     
     % Calculate final deltas
-    delta_a = c_a - beta*q_tilde - z + beta/2;
-    delta_b = c_b + beta*q_tilde + z + beta/2;
+    delta_a = c_a - beta*q_tilde + beta/2;
+    delta_b = c_b + beta*q_tilde + beta/2;
 end
 
 function [arrival_a, arrival_b] = get_arrival(sims, dt, lambda_a, lambda_b)
@@ -259,6 +232,4 @@ function [arrival_a, arrival_b] = get_arrival(sims, dt, lambda_a, lambda_b)
     % Determine arrivals using Poisson process probabilities
     arrival_a = unif_a < (1 - exp(-lambda_a * dt));
     arrival_b = unif_b < (1 - exp(-lambda_b * dt));
-    
 end
-
