@@ -110,16 +110,3 @@ title(sprintf('Objective Functions vs Beta (a = %.3f)', a));
 legend('Leader Objective', 'Follower Objective', 'Location', 'best');
 grid on;
 hold off;
-
-% Optional: Plot with error bars (if you want to show standard deviation)
-% You would need to modify the loop to also store std values
-% figure;
-% errorbar(beta_values, leader_results, leader_stds, 'r-o', 'LineWidth', 2, 'MarkerFaceColor', 'r');
-% hold on;
-% errorbar(beta_values, follower_results, follower_stds, 'b-s', 'LineWidth', 2, 'MarkerFaceColor', 'b');
-% xlabel('Beta');
-% ylabel('Objective Value');
-% title(sprintf('Objective Functions vs Beta (a = %.1f)', a));
-% legend('Leader Objective', 'Follower Objective', 'Location', 'best');
-% grid on;
-% hold off;
