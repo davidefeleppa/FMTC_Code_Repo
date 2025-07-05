@@ -15,7 +15,7 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     kappa = 2; 
 
     % Penalties
-    phi = 0.01;
+    phi = 0.03;
     gamma = 0.03;
     
     % All possible inventory levels 
@@ -136,18 +136,17 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     
     % Calculate final PnL and objectives
     
-    % Calculate final PnL and objectives
     % For follower
     final_price_follower = S(:,end) - beta*Q_tilde(:,end);
     pnl = X(:,end) + Q(:,end).*final_price_follower;
     intQ = sum(Q.^2, 2)*dt/T; 
-    obj_follower = pnl - A(end)*Q(:,end).^2 - phi*intQ;
+    obj_follower = pnl - gamma*Q(:,end).^2 - phi*intQ;
     
     % For leader
-    final_price_leader = S(:,end) - beta*Q_tilde(:,end);
+    final_price_leader = S(:,end);
     pnl_tilde = X_tilde(:,end) + Q_tilde(:,end).*final_price_leader;
     intQ_tilde = sum(Q_tilde.^2, 2)*dt/T;
-    obj_leader = pnl_tilde - A(end)*Q_tilde(:,end).^2 - phi*intQ_tilde;
+    obj_leader = pnl_tilde - gamma*Q_tilde(:,end).^2 - phi*intQ_tilde;
     
 end
 

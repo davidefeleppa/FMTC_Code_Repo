@@ -6,13 +6,16 @@ steps = 1e6;
 time_vals = linspace(0,1,steps);
 
 % A and B functions
-ref_a = 0.1;
-ref_beta = 0.03;
-A_ref = ref_a * exp(-time_vals);
-B_ref = A_ref;
+% ref_a = 0.1;
+% ref_beta = 0.03;
+% A_ref = ref_a * exp(-time_vals);
+% B_ref = A_ref;
 
+A = 0.1 * ones(steps, 1);
+B = A;
+beta = 0.03;
 
-[time, Q, Q_tilde, da, db, ta, tb, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Euler(A_ref, B_ref, ref_beta, 1);
+[time, Q, Q_tilde, da, db, ta, tb, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Euler(A, B, beta, 1);
 
 % Fix terminal deltas/tildes for plotting
 da(:,end) = da(:,end-1); db(:,end) = db(:,end-1);

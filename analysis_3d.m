@@ -9,8 +9,8 @@ steps = 1e6;
 time_vals = linspace(0,1,steps);
 
 % Parameter ranges
-a_values = linspace(0.20, 0.80, 5);
-beta_values = linspace(0, 0.3, 5);
+a_values = linspace(0, 100, 5);
+beta_values = linspace(0, 100, 5);
 num_a = length(a_values);
 num_beta = length(beta_values);
 
@@ -85,4 +85,18 @@ title('Leader (Red) vs Follower (Blue) Objectives', 'FontWeight', 'bold');
 grid on;
 view(135, 30);
 legend({'Leader', 'Follower'}, 'Location', 'best');
+hold off;
+
+% Create contour plot for leader objective function
+figure;
+contourf(AA, BB, leader_results', 20, 'LineColor', 'none'); % 20 contour levels, no lines
+colormap(jet); % Use jet colormap (or try 'parula', 'hot', etc.)
+colorbar; % Show color scale
+xlabel('a', 'FontWeight', 'bold');
+ylabel('\beta', 'FontWeight', 'bold');
+title('Leader Objective Function (Contour Plot)', 'FontWeight', 'bold');
+grid on;
+hold on;
+[C,h] = contour(AA, BB, leader_results', 10, 'k-'); % 10 black contour lines
+clabel(C,h,'FontSize',8,'Color','k','LabelSpacing',500);
 hold off;

@@ -48,6 +48,7 @@ function plot_time_series_results(time, Q, Q_tilde, deltas_a, deltas_b, tildes_a
     end
     ylabel('$Q_t$', 'Interpreter', 'latex');
     grid on;
+    ylim([qmin-1, qmax+1])  % Sets y-axis limits
     title('Follower Inventory');
     legend('Inventory', 'Max', 'Min', 'Ask Trade', 'Bid Trade', 'Location', 'best');
     
