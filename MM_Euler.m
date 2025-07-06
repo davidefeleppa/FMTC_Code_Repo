@@ -1,11 +1,7 @@
-function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Euler(A, B, beta, sims)    
+function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Euler(A, B, beta, theta, sims)    
     % Stock Price
     sigma = 1;
     S0 = 100;
-    
-    % Arrival Probabilities ~ Poission(λ)
-    lambda_a = 10;
-    lambda_b = 10; 
     
     % Inventory
     qmax = 10;
@@ -13,6 +9,11 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
 
     % Fill probability sensitivity 
     kappa = 2; 
+
+    % Arrival Probabilities ~ Poission(λ)
+    lambda_0 = 10;
+    lambda_a = lambda_0 * exp(-kappa*A(end));
+    lambda_b = lambda_0 * exp(-kappa*B(end));
 
     % Penalties
     phi = 0.03;
@@ -23,32 +24,28 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     
     % Time scale
     T = 1;
-    Nt = 1000; % Number of steps
-    dt = T/Nt; % Time step size
-    euler_steps = 1000000; % Euler steps
-    time = linspace(0, T, Nt+1); % Time axis
+    Nt = 1000; % Number of time steps
+    dt = T/(Nt+1); % Time step size
+    steps = Nt+1; % Euler steps
+    time = linspace(0, T, steps); % Time axis
     
     % Initialize arrays
-    X = zeros(sims, Nt+1); % Cash
-    X_tilde = zeros(sims, Nt+1); % Cash
-    Q = zeros(sims, Nt+1); % Inventory
-    Q_tilde = zeros(sims, Nt+1); % Competitors Inventory
-    S = zeros(sims, Nt+1); % Stock price path
+    X = zeros(sims, steps); % Cash
+    X_tilde = zeros(sims, steps); % Cash
+    Q = zeros(sims, steps); % Inventory
+    Q_tilde = zeros(sims, steps); % Competitors Inventory
+    S = zeros(sims, steps); % Stock price path
     S(:,1) = S0; % Start stock at S0
 
     % Bid ask quotes of us and the competitor
-    deltas_a = zeros(sims, Nt+1);
-    deltas_b = zeros(sims, Nt+1);
-    tildes_a = zeros(sims, Nt+1);
-    tildes_b = zeros(sims, Nt+1);
-    
-    % Arrival of the asks and bids
-    arrivaltimes_a = zeros(sims, Nt+1);
-    arrivaltimes_b = zeros(sims, Nt+1);
+    deltas_a = zeros(sims, steps);
+    deltas_b = zeros(sims, steps);
+    tildes_a = zeros(sims, steps);
+    tildes_b = zeros(sims, steps);
     
     % Run Euler scheme to calculate g as a function of time step and inventory
     % g(t,q)
-    g = euler_scheme(euler_steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, lambda_a, lambda_b);
+    g = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, theta, lambda_a, lambda_b);
     
     % Round all_inventories to the cent
     all_inventories_list = round(all_inventories, 2);
@@ -57,9 +54,9 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     % For each time step (i)
     for i = 1:Nt
         t = time(i);
-        
+ 
         % Get current g values for this time step
-        gt_all_q = g(round(i*(euler_steps/Nt)), :);
+        gt_all_q = g(i, :);
     
         % Pre-allocate space for G, G up and G down
         G = zeros(sims, 1);
@@ -88,31 +85,29 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
         end
         
         % Calculate deltas
-        [delta_a, delta_b] = calculate_deltas_euler(Q_tilde(:,i), G, G_down, G_up, ...
-                             kappa, A(i), B(i), beta, true);
+        [delta_a, delta_b] = calculate_deltas_euler(Q(:,i), Q_tilde(:,i), G, G_down, G_up, ...
+                             kappa, A(i), B(i), beta, theta, true);
         % Save deltas
         deltas_a(:, i) = delta_a;
         deltas_b(:, i) = delta_b;
         
-        % Update Z and S (Brownian motions)
+        % Update S (Brownian motions)
         S(:,i+1) = S(:,i) + sigma * sqrt(dt) * randn(sims, 1);
         
         % Simulate order arrivals
         [arrival_a, arrival_b] = get_arrival(sims, dt, lambda_a, lambda_b);
-        arrivaltimes_a(:,i) = arrival_a * t;
-        arrivaltimes_b(:,i) = arrival_b * t;
         
         % Calculate fill probabilities
         fill_a = rand(sims, 1);
         fill_b = rand(sims, 1);
         
         % Get competitor bid ask quotes
-        delta_tilde_a = A(i) - beta * Q_tilde(:,i);
-        delta_tilde_b = B(i) + beta * Q_tilde(:,i);
+        delta_tilde_a = A(i) - beta * Q_tilde(:,i) - theta*Q(:, i);
+        delta_tilde_b = B(i) + beta * Q_tilde(:,i) + theta*Q(:, i);
         tildes_a(:,i) = delta_tilde_a;
         tildes_b(:,i) = delta_tilde_b;
         
-        % Calculate prob of filling orders and and respective binary operator 
+        % Calculate prob of filling orders and respective binary operator 
         prob_a = min(exp(-kappa*(delta_a - delta_tilde_a)), 1);
         prob_b = min(exp(-kappa*(delta_b - delta_tilde_b)), 1);
         
@@ -140,26 +135,32 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     final_price_follower = S(:,end) - beta*Q_tilde(:,end);
     pnl = X(:,end) + Q(:,end).*final_price_follower;
     intQ = sum(Q.^2, 2)*dt/T; 
-    obj_follower = pnl - gamma*Q(:,end).^2 - phi*intQ;
+    obj_follower = mean(pnl - (gamma + theta)*Q(:,end).^2 - phi*intQ);
     
     % For leader
     final_price_leader = S(:,end);
     pnl_tilde = X_tilde(:,end) + Q_tilde(:,end).*final_price_leader;
     intQ_tilde = sum(Q_tilde.^2, 2)*dt/T;
-    obj_leader = pnl_tilde - gamma*Q_tilde(:,end).^2 - phi*intQ_tilde;
+    obj_leader = mean(pnl_tilde - (gamma)*Q_tilde(:,end).^2 - theta*Q_tilde(:,end).*Q(:,end) - phi*intQ_tilde);
     
 end
 
-function g = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, lambda_a, lambda_b)
+function g_3D = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, theta, lambda_a, lambda_b)
     % Initialize variables
     h = T / steps;
     all_inventories = qmax:-1:qmin; 
-    g = zeros(steps, length(all_inventories));
+    num_inventories = length(all_inventories);
     
-    % Terminal condition
-    for iq = 1:length(all_inventories)
+    % Initialize 3D matrix (time × Q × Q̃)
+    g_3D = zeros(steps, num_inventories, num_inventories);
+    
+    % Terminal condition - g(T, Q, Q̃) doesn't depend on Q̃
+    terminal_a = A(end);
+    terminal_b = B(end);
+    for iq = 1:num_inventories
         q = all_inventories(iq);
-        g(end, iq) = ((A(end)-B(end))/2)*q - (gamma-beta/2)*(q^2);
+        terminal_value = ((terminal_a-terminal_b)/2)*q - (gamma + 0.5*(theta-beta))*(q^2);
+        g_3D(end, iq, :) = terminal_value; % Same for all Q̃
     end
     
     % Time stepping (backward)
@@ -168,59 +169,64 @@ function g = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, l
         a = A(t_idx);
         b = B(t_idx);
         
-        for iq = 1:length(all_inventories)
-            q = all_inventories(iq);
-            
-            % Interior points
-            if iq ~= 1 && iq ~= length(all_inventories)
-                c_star_a = max(1/kappa - g(t_idx, iq-1) + g(t_idx, iq), a - beta/2);
-                c_star_b = max(1/kappa - g(t_idx, iq+1) + g(t_idx, iq), b - beta/2);
+        % Compute g(t-1, Q, Q̃) for all Q and Q̃
+        for iq_tilde = 1:num_inventories
+            for iq = 1:num_inventories
+                q = all_inventories(iq);
                 
-                g(t_idx-1, iq) = g(t_idx, iq) + h * ( ...
-                    -phi*(q^2) ...
-                    + (lambda_a-lambda_b)*beta*q ...
-                    + lambda_a*exp(-kappa*(c_star_a + beta/2 - a))*(c_star_a + g(t_idx,iq-1) - g(t_idx,iq)) ...
-                    + lambda_b*exp(-kappa*(c_star_b + beta/2 - b))*(c_star_b + g(t_idx,iq+1) - g(t_idx,iq)));
-            
-            % Lower boundary (iq == 1)
-            elseif iq == 1
-                c_star_b = max(1/kappa - g(t_idx, iq+1) + g(t_idx, iq), b - beta/2);
+                % Interior points
+                if iq ~= 1 && iq ~= num_inventories
+                    c_star_a = max(1/kappa - g_3D(t_idx, iq-1, iq_tilde) + g_3D(t_idx, iq, iq_tilde), a - 0.5*(beta+theta));
+                    c_star_b = max(1/kappa - g_3D(t_idx, iq+1, iq_tilde) + g_3D(t_idx, iq, iq_tilde), b - 0.5*(beta+theta));
+                    
+                    g_3D(t_idx-1, iq, iq_tilde) = g_3D(t_idx, iq, iq_tilde) + h * ( ...
+                        -phi*(q^2) ...
+                        + (lambda_a-lambda_b)*beta*q ...
+                        + lambda_a*exp(-kappa*(c_star_a + 0.5*(theta+beta) - a))*(c_star_a + g_3D(t_idx,iq-1,iq_tilde) - g_3D(t_idx,iq,iq_tilde)) ...
+                        + lambda_b*exp(-kappa*(c_star_b + 0.5*(theta+beta) - b))*(c_star_b + g_3D(t_idx,iq+1,iq_tilde) - g_3D(t_idx,iq,iq_tilde)));
                 
-                g(t_idx-1, iq) = g(t_idx, iq) + h * ( ...
-                    -phi*(q^2) ...
-                    + (lambda_a-lambda_b)*beta*q ...
-                    + lambda_b*exp(-kappa*(c_star_b + beta/2 - b))*(c_star_b + g(t_idx,iq+1) - g(t_idx,iq)));
-            
-            % Upper boundary (iq == end)
-            else
-                c_star_a = max(1/kappa - g(t_idx, iq-1) + g(t_idx, iq), a - beta/2);
+                % Lower boundary (iq == 1)
+                elseif iq == 1
+                    c_star_b = max(1/kappa - g_3D(t_idx, iq+1, iq_tilde) + g_3D(t_idx, iq, iq_tilde), b - 0.5*(beta+theta));
+                    
+                    g_3D(t_idx-1, iq, iq_tilde) = g_3D(t_idx, iq, iq_tilde) + h * ( ...
+                        -phi*(q^2) ...
+                        + (lambda_a-lambda_b)*beta*q ...
+                        + lambda_b*exp(-kappa*(c_star_b + 0.5*(beta+theta) - b))*(c_star_b + g_3D(t_idx,iq+1,iq_tilde) - g_3D(t_idx,iq,iq_tilde)));
                 
-                g(t_idx-1, iq) = g(t_idx, iq) + h * ( ...
-                    -phi*(q^2) ...
-                    + (lambda_a-lambda_b)*beta*q ...
-                    + lambda_a*exp(-kappa*(c_star_a + beta/2 - a))*(c_star_a + g(t_idx,iq-1) - g(t_idx,iq)));
+                % Upper boundary (iq == end)
+                else
+                    c_star_a = max(1/kappa - g_3D(t_idx, iq-1, iq_tilde) + g_3D(t_idx, iq, iq_tilde), a - 0.5*(beta+theta));
+                    
+                    g_3D(t_idx-1, iq, iq_tilde) = g_3D(t_idx, iq, iq_tilde) + h * ( ...
+                        -phi*(q^2) ...
+                        + (lambda_a-lambda_b)*beta*q ...
+                        + lambda_a*exp(-kappa*(c_star_a + 0.5*(beta+theta) - a))*(c_star_a + g_3D(t_idx,iq-1,iq_tilde) - g_3D(t_idx,iq,iq_tilde)));
+                end
             end
         end
     end
+
+    g_3D = g_3D(:,:,1);
 end
 
-function [delta_a, delta_b] = calculate_deltas_euler(q_tilde, gt, gt_q_minus, gt_q_plus, kappa, a, b, beta, take_maximum)
+function [delta_a, delta_b] = calculate_deltas_euler(q, q_tilde, gt, gt_q_minus, gt_q_plus, kappa, a, b, beta, theta, take_maximum)
     % Calculate c_hat values
     c_hat_a = 1/kappa - gt_q_minus + gt;
     c_hat_b = 1/kappa - gt_q_plus + gt;
     
     % Apply maximum condition if needed
     if take_maximum
-        c_a = max(c_hat_a, a - beta/2);
-        c_b = max(c_hat_b, b - beta/2);
+        c_a = max(c_hat_a, a - 0.5*(beta+theta));
+        c_b = max(c_hat_b, b - 0.5*(beta+theta));
     else
         c_a = c_hat_a;
         c_b = c_hat_b;
     end
     
     % Calculate final deltas
-    delta_a = c_a - beta*q_tilde + beta/2;
-    delta_b = c_b + beta*q_tilde + beta/2;
+    delta_a = c_a - beta*q_tilde + 0.5*(beta+theta) - theta*q;
+    delta_b = c_b + beta*q_tilde + 0.5*(beta+theta) + theta*q;
 end
 
 function [arrival_a, arrival_b] = get_arrival(sims, dt, lambda_a, lambda_b)
