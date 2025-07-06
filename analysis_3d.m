@@ -5,14 +5,14 @@
 rng(0);  % For reproducibility
 
 % Parameter ranges
-a_values = linspace(0, 1, 100);
-b_values = linspace(0, 1, 100);
+a_values = linspace(0, 1, 20);
+b_values = linspace(0, 1, 20);
 
 num_a = length(a_values);
 num_b = length(b_values);
 
 % Simulation
-sims = 1000;
+sims = 10000;
 steps = 1e6; 
 
 % Initialize result matrices
@@ -36,15 +36,15 @@ for i = 1:num_a
         [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(A, B, beta, theta, sims);
 
         % Store mean objective values
-        leader_results(i, j) = obj_leader;
-        follower_results(i, j) = obj_follower;
+        leader_results(i, j) = mean(obj_leader);
+        follower_results(i, j) = mean(obj_follower);
 
         fprintf('Completed a = %.3f, b = %.3f\n', a, b);
     end
 end
 
 % Meshgrid for surface plotting
-[AA, BB] = meshgrid(a_values, beta_values);
+[AA, BB] = meshgrid(a_values, b_values);
 
 % Plot: Leader Objective Surface
 figure;

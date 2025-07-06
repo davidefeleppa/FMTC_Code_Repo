@@ -12,11 +12,11 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
 
     % Arrival Probabilities ~ Poission(λ)
     lambda_0 = 10;
-    lambda_a = lambda_0 * exp(-kappa*A(end));
-    lambda_b = lambda_0 * exp(-kappa*B(end));
+    lambda_A = lambda_0 * exp(-kappa*A);
+    lambda_B = lambda_0 * exp(-kappa*B);
 
     % Penalties
-    phi = 0.03;
+    phi = 0.1;
     gamma = 0.03;
     
     % All possible inventory levels 
@@ -45,7 +45,7 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     
     % Run Euler scheme to calculate g as a function of time step and inventory
     % g(t,q)
-    g = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, theta, lambda_a, lambda_b);
+    g = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, theta, lambda_A, lambda_B);
     
     % Round all_inventories to the cent
     all_inventories_list = round(all_inventories, 2);
@@ -95,7 +95,7 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
         S(:,i+1) = S(:,i) + sigma * sqrt(dt) * randn(sims, 1);
         
         % Simulate order arrivals
-        [arrival_a, arrival_b] = get_arrival(sims, dt, lambda_a, lambda_b);
+        [arrival_a, arrival_b] = get_arrival(sims, dt, lambda_A(i), lambda_B(i));
         
         % Calculate fill probabilities
         fill_a = rand(sims, 1);
@@ -135,17 +135,17 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, tildes_a, tildes_b, qmax, qmin, 
     final_price_follower = S(:,end) - beta*Q_tilde(:,end);
     pnl = X(:,end) + Q(:,end).*final_price_follower;
     intQ = sum(Q.^2, 2)*dt/T; 
-    obj_follower = mean(pnl - (gamma + theta)*Q(:,end).^2 - phi*intQ);
+    obj_follower = pnl - (gamma + theta)*Q(:,end).^2 - phi*intQ;
     
     % For leader
     final_price_leader = S(:,end);
     pnl_tilde = X_tilde(:,end) + Q_tilde(:,end).*final_price_leader;
     intQ_tilde = sum(Q_tilde.^2, 2)*dt/T;
-    obj_leader = mean(pnl_tilde - (gamma)*Q_tilde(:,end).^2 - theta*Q_tilde(:,end).*Q(:,end) - phi*intQ_tilde);
+    obj_leader = pnl_tilde - (gamma)*Q_tilde(:,end).^2 - theta*Q_tilde(:,end).*Q(:,end) - phi*intQ_tilde;
     
 end
 
-function g_3D = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, theta, lambda_a, lambda_b)
+function g_3D = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi, theta, lambda_A, lambda_B)
     % Initialize variables
     h = T / steps;
     all_inventories = qmax:-1:qmin; 
@@ -168,6 +168,8 @@ function g_3D = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi
         t_idx = steps - i + 1;  % Current time index in backward scheme
         a = A(t_idx);
         b = B(t_idx);
+        lambda_a = lambda_A(t_idx);
+        lambda_b = lambda_B(t_idx);
         
         % Compute g(t-1, Q, Q̃) for all Q and Q̃
         for iq_tilde = 1:num_inventories
@@ -207,6 +209,9 @@ function g_3D = euler_scheme(steps, T, qmax, qmin, A, B, gamma, beta, kappa, phi
         end
     end
 
+
+    % We have not yet implemented a time dependant theta value so we only
+    % need g dependant on one inventory
     g_3D = g_3D(:,:,1);
 end
 
