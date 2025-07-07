@@ -1,45 +1,49 @@
 %% Evaluate MM_Euler over a Grid of (a, beta)
-% This script evaluates MM_Euler over a grid of (a, beta) pairs
+% This script evaluates MM_Euler or MM_Matrix over a grid of a(t) & b(t) pairs
 % and plots the mean objective values as surface plots.
 
-rng(0);  % For reproducibility
+% For reproducability
+rng(0);
 
-% Parameter ranges
-a_values = linspace(0, 1, 20);
-b_values = linspace(0, 1, 20);
-
-num_a = length(a_values);
-num_b = length(b_values);
-
-% Simulation
+% Simulations
 sims = 10000;
-steps = 1e6; 
+
+% Fixed Variables
+beta = 0.05;
+theta = 0.3;
+
+% Parameter Ranges
+a_values = linspace(0, 1, 10);
+b_values = linspace(0, 1, 10);
 
 % Initialize result matrices
+num_a = length(a_values);
+num_b = length(b_values);
 leader_results = zeros(num_a, num_b);
 follower_results = zeros(num_a, num_b);
 
-beta = 0.05;
-theta = 0.05;
-
-% Loop through each (a, beta) pair
+% Loop through each a(t) & b(t) pair
 fprintf('\n--- Running 3D Parameter Sweep ---\n');
 for i = 1:num_a
     for j = 1:num_b
-        a = a_values(i);
-        b = b_values(j);
 
-        A = ones(steps, 1) * a;  % Constant a over time
-        B = ones(steps, 1) * b;  % Constant a over time
+        % Time dependant parameters
+        a_func = @(t, a0, a1) a_values(i);
+        b_func = @(t, b0, b1) b_values(j);
 
         % Run simulation
-        [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(A, B, beta, theta, sims);
+        [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(a_func, b_func, beta, theta, sims);
 
         % Store mean objective values
         leader_results(i, j) = mean(obj_leader);
         follower_results(i, j) = mean(obj_follower);
 
-        fprintf('Completed a = %.3f, b = %.3f\n', a, b);
+        % Progress Bar
+        progress = (i-1)*num_b + j-1;
+        total = num_a * num_b;
+        if j == 1 || progress == total
+            fprintf('Progress: [%-20s] %d/%d (%.1f%%)\n', repmat('=',1,round(20*progress/total)), progress, total, 100*progress/total);
+        end
     end
 end
 
@@ -99,7 +103,6 @@ hold on;
 [C,h] = contour(AA, BB, leader_results', 10, 'k-'); % 10 black contour lines
 clabel(C,h,'FontSize',8,'Color','k','LabelSpacing',500);
 hold off;
-
 
 % Create contour plot for leader objective function
 figure;

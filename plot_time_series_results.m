@@ -36,7 +36,7 @@ function plot_time_series_results(time, Q_F, Q_L, delta_a_F, delta_b_F, delta_a_
     F_color = [0 0.4470 0.7410]; % Blue for Follower
     L_color = [0.8500 0.3250 0.0980]; % Orange for Leader
     
-    % Combined Inventory Plot (properly closed brackets)
+    % Combined Inventory Plot (properly closed brackets) %%%
     subplot(2,2,1);
     plot(time, Q_F(nmin:nmax,:)', 'Color', F_color, 'LineWidth', 1.5);
     hold on;
@@ -64,44 +64,8 @@ function plot_time_series_results(time, Q_F, Q_L, delta_a_F, delta_b_F, delta_a_
     ylim([qmin-1, qmax+1]);
     title('Inventory Trajectories');
     legend('Follower', 'Leader', 'Ask', 'Bid', 'Location', 'best');
-    
-    % Combined Ask Quotes (properly closed brackets)
-    subplot(2,2,4);
-    plot(time, delta_a_F(nmin:nmax,:)', 'Color', F_color, 'LineWidth', 1.5);
-    hold on;
-    plot(time, delta_a_L(nmin:nmax,:)', 'Color', L_color, 'LineWidth', 1.5);
-    
-    if ~isempty(trade_times_a_F)
-        scatter(trade_times_a_F, interp1(time, delta_a_F(nmin,:), trade_times_a_F), 'ro', 'filled');
-    end
-    if ~isempty(trade_times_a_L)
-        scatter(trade_times_a_L, interp1(time, delta_a_L(nmin,:), trade_times_a_L), 'ro', 'filled');
-    end
-    
-    ylabel('Ask Quotes $\delta^a_t$', 'Interpreter', 'latex');
-    grid on;
-    title('Ask Quote Trajectories');
-    legend('Follower', 'Leader', 'Trades', 'Location', 'best');
-    
-    % Combined Bid Quotes (properly closed brackets)
-    subplot(2,2,3);
-    plot(time, delta_b_F(nmin:nmax,:)', 'Color', F_color, 'LineWidth', 1.5);
-    hold on;
-    plot(time, delta_b_L(nmin:nmax,:)', 'Color', L_color, 'LineWidth', 1.5);
-    
-    if ~isempty(trade_times_b_F)
-        scatter(trade_times_b_F, interp1(time, delta_b_F(nmin,:), trade_times_b_F), 'go', 'filled');
-    end
-    if ~isempty(trade_times_b_L)
-        scatter(trade_times_b_L, interp1(time, delta_b_L(nmin,:), trade_times_b_L), 'go', 'filled');
-    end
-    
-    ylabel('Bid Quotes $\delta^b_t$', 'Interpreter', 'latex');
-    grid on;
-    title('Bid Quote Trajectories');
-    legend('Follower', 'Leader', 'Trades', 'Location', 'best');
-    
-    % Combined Spreads (properly closed brackets)
+
+    % Combined Spreads (properly closed brackets) %%%
     subplot(2,2,2);
     spread_F = delta_a_F(nmin:nmax,:)' + delta_b_F(nmin:nmax,:)';
     spread_L = delta_a_L(nmin:nmax,:)' + delta_b_L(nmin:nmax,:)';
@@ -126,6 +90,43 @@ function plot_time_series_results(time, Q_F, Q_L, delta_a_F, delta_b_F, delta_a_
     grid on;
     title('Spread Trajectories');
     legend('Follower', 'Leader', 'Trades', 'Location', 'best');
+    
+    % Combined Bid Quotes (properly closed brackets) %%%
+    subplot(2,2,3);
+    plot(time, delta_b_F(nmin:nmax,:)', 'Color', F_color, 'LineWidth', 1.5);
+    hold on;
+    plot(time, delta_b_L(nmin:nmax,:)', 'Color', L_color, 'LineWidth', 1.5);
+    
+    if ~isempty(trade_times_b_F)
+        scatter(trade_times_b_F, interp1(time, delta_b_F(nmin,:), trade_times_b_F), 'go', 'filled');
+    end
+    if ~isempty(trade_times_b_L)
+        scatter(trade_times_b_L, interp1(time, delta_b_L(nmin,:), trade_times_b_L), 'go', 'filled');
+    end
+    
+    ylabel('Bid Quotes $\delta^b_t$', 'Interpreter', 'latex');
+    grid on;
+    title('Bid Quote Trajectories');
+    legend('Follower', 'Leader', 'Trades', 'Location', 'best');
+
+    % Combined Ask Quotes (properly closed brackets) %%%
+    subplot(2,2,4);
+    plot(time, delta_a_F(nmin:nmax,:)', 'Color', F_color, 'LineWidth', 1.5);
+    hold on;
+    plot(time, delta_a_L(nmin:nmax,:)', 'Color', L_color, 'LineWidth', 1.5);
+    
+    if ~isempty(trade_times_a_F)
+        scatter(trade_times_a_F, interp1(time, delta_a_F(nmin,:), trade_times_a_F), 'ro', 'filled');
+    end
+    if ~isempty(trade_times_a_L)
+        scatter(trade_times_a_L, interp1(time, delta_a_L(nmin,:), trade_times_a_L), 'ro', 'filled');
+    end
+    
+    ylabel('Ask Quotes $\delta^a_t$', 'Interpreter', 'latex');
+    grid on;
+    title('Ask Quote Trajectories');
+    legend('Follower', 'Leader', 'Trades', 'Location', 'best');
+
     
     % Adjust all axes
     h = findobj(gcf, 'type', 'axes');
