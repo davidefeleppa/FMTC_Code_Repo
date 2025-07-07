@@ -162,9 +162,9 @@ function [delta_a, delta_b] = calculate_deltas(t, T, q, q_tilde, qmax, kappa, ph
     g_q = calculate_gt(t, kappa, theta, qmax, phi, lambda_a, lambda_b, beta, a, b, gamma, T);
     
     % Optionally print the predited pnl value V
-    % if (t==0)
-    %     fprintf('V = %.3f \n', g_q(11))
-    % end
+    if (t==0)
+        fprintf('V = %.3f \n', g_q(11))
+    end
 
     % Convert current inventory to 1-based index
     idx = qmax - q + 1;

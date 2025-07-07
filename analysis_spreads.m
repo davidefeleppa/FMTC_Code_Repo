@@ -188,12 +188,16 @@ set(cbar, 'Position', [0.92 0.15 0.02 0.7]);
 % Parameters
 T = 1;  % Terminal time
 time_vector = linspace(0, T, 50);  % Time grid
-theta_values = linspace(-0.5,0.5,3);     % Different theta values to analyze
+theta_values = linspace(-0.1,0.1,3);     % Different theta values to analyze
 q_values = -10:1:10;        % Inventory levels to plot (-10 to +10 in steps of 5)
 q_colors = parula(length(q_values)); % Color map for inventory levels
 
 % Create figure
 figure('Position', [100 100 1000 800]);
+
+% Time dependant parameters
+a_func = @(t, a0, a1) a + 0.5*t;
+b_func = @(t, b0, b1) b + 0.5*t;
 
 % Loop through theta values (rows)
 for theta_idx = 1:length(theta_values)
@@ -205,6 +209,12 @@ for theta_idx = 1:length(theta_values)
     
     for q_idx = 1:length(q_values)
         for t_idx = 1:length(time_vector)
+                
+            a_t = a_func(time_vector(t_idx));
+            b_t = b_func(time_vector(t_idx));
+            lambda_a_t = lambda_0 * exp(-kappa*a_t);
+            lambda_b_t = lambda_0 * exp(-kappa*b_t); 
+                
             [deltas_a(t_idx,q_idx), deltas_b(t_idx,q_idx)] = calculate_deltas(...
                 time_vector(t_idx), T, q_values(q_idx), 0, qmax, kappa, phi, gamma, ...
                 a, b, lambda_a, lambda_b, beta, theta, true);
