@@ -121,7 +121,7 @@ deltas_b = zeros(length(theta_vector), length(q_vector));
 % Calculate deltas for each theta and q
 for i = 1:length(theta_vector)
     for j = 1:length(q_vector)
-        [delta_a, delta_b] = calculate_deltas(t, T, q_vector(j), 0, qmax, kappa, phi, gamma, a, b, lambda_a, lambda_b, beta, theta_vector(i), true);
+        [delta_a, delta_b] = calculate_deltas(t, T, q_vector(j), 0, qmax, kappa, phi, gamma, a, b, lambda_a, lambda_b, beta, theta_vector(i), false);
         deltas_a(i,j) = delta_a;
         deltas_b(i,j) = delta_b;
     end
@@ -217,9 +217,110 @@ for theta_idx = 1:length(theta_values)
                 
             [deltas_a(t_idx,q_idx), deltas_b(t_idx,q_idx)] = calculate_deltas(...
                 time_vector(t_idx), T, q_values(q_idx), 0, qmax, kappa, phi, gamma, ...
-                a, b, lambda_a, lambda_b, beta, theta, true);
+                a, b, lambda_a, lambda_b, beta, theta, false);
+
         end
     end
+
+     
+    
+    % ===== Ask Spread Subplot =====
+    subplot(length(theta_values), 2, (theta_idx-1)*2 + 1);
+    hold on; grid on;
+    
+    for q_idx = 1:length(q_values)
+        plot(time_vector, deltas_a(:,q_idx), ...
+            'Color', q_colors(q_idx,:), ...
+            'LineWidth', 1.5, ...
+            'DisplayName', sprintf('q=%d', q_values(q_idx)));
+    end
+    
+    title(sprintf('Ask Spread (θ=%.2f)', theta), 'FontSize', 12);
+    if theta_idx == length(theta_values)
+        xlabel('Time', 'FontSize', 10);
+    end
+    ylabel('\delta^a', 'FontSize', 10);
+    xlim([0 T]);
+    
+    % ===== Bid Spread Subplot =====
+    subplot(length(theta_values), 2, (theta_idx-1)*2 + 2);
+    hold on; grid on;
+    
+    for q_idx = 1:length(q_values)
+        plot(time_vector, deltas_b(:,q_idx), ...
+            'Color', q_colors(q_idx,:), ...
+            'LineWidth', 1.5, ...
+            'DisplayName', sprintf('q=%d', q_values(q_idx)));
+    end
+    
+    title(sprintf('Bid Spread (θ=%.2f)', theta), 'FontSize', 12);
+    if theta_idx == length(theta_values)
+        xlabel('Time', 'FontSize', 10);
+    end
+    ylabel('\delta^b', 'FontSize', 10);
+    xlim([0 T]);
+end
+
+% Add colorbar
+colormap(q_colors);
+cbar = colorbar;
+clim([min(q_values) max(q_values)]);
+cbar.Label.String = 'Inventory Level (Q)';
+cbar.Label.FontSize = 10;
+set(cbar, 'Position', [0.92 0.15 0.02 0.7]);
+
+% Adjust all axes font sizes
+set(findall(gcf, 'Type', 'axes'), 'FontSize', 9);
+ 
+%% Anslyze over time of spread diff
+
+% Parameters
+T = 1;  % Terminal time
+time_vector = linspace(0, T, 50);  % Time grid
+theta_values = linspace(-0.1,0.1,3);     % Different theta values to analyze
+q_values = -10:1:10;        % Inventory levels to plot (-10 to +10 in steps of 5)
+q_colors = parula(length(q_values)); % Color map for inventory levels
+
+% Create figure
+figure('Position', [100 100 1000 800]);
+
+% Time dependant parameters
+a_func = @(t, a0, a1) a + 0.5*t;
+b_func = @(t, b0, b1) b + 0.5*t;
+
+% Loop through theta values (rows)
+for theta_idx = 1:length(theta_values)
+    theta = theta_values(theta_idx);
+    
+    % Pre-compute deltas for this theta
+    deltas_a = zeros(length(time_vector), length(q_values));
+    deltas_b = zeros(length(time_vector), length(q_values));
+    
+    for q_idx = 1:length(q_values)
+        for t_idx = 1:length(time_vector)
+                
+            a_t = 0.1;
+            b_t = 0.1;
+            
+            lambda_a_t = lambda_0 * exp(-kappa*a_t);
+            lambda_b_t = lambda_0 * exp(-kappa*b_t); 
+                
+            [delta_a, delta_b] = calculate_deltas(...
+                time_vector(t_idx), T, q_values(q_idx), 0, qmax, kappa, phi, gamma, ...
+                a, b, lambda_a, lambda_b, beta, theta, false);
+
+
+            % assuming Q_tilde = 0
+            delta_tilde_a = a_t - theta*q_values(q_idx);
+            delta_tilde_b = b_t + theta*q_values(q_idx);
+
+            deltas_a(t_idx,q_idx) = delta_a - delta_tilde_a;
+            deltas_b(t_idx,q_idx) = delta_b - delta_tilde_b;
+
+        end
+    end
+
+     
     
     % ===== Ask Spread Subplot =====
     subplot(length(theta_values), 2, (theta_idx-1)*2 + 1);

@@ -13,9 +13,11 @@ b_func = @(t, b0, b1) 0.1;
 % Fixed Parameters
 beta = 0.05;
 theta = 0;
+phi = 0.1;
+gamma = 0.03;
 
 % Run simulations
-[time, Q, Q_tilde, da, db, ta, tb, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Euler(a_func, b_func, beta, theta, sims);
+[time, Q, Q_tilde, da, db, ta, tb, qmax, qmin, X, X_tilde, pnl, pnl_tilde, obj_follower, obj_leader] = MM_Matrix(a_func, b_func, beta, theta, phi, gamma, sims);
 
 % Fix terminal deltas/tildes for plotting
 da(:,end) = da(:,end-1); db(:,end) = db(:,end-1);

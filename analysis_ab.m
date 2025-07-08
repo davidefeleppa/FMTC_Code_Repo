@@ -10,11 +10,11 @@ sims = 10000;
 
 % Fixed Variables
 beta = 0.05;
-theta = 0;
+theta = 0.02;
 
 % Parameter Ranges
-a_values = linspace(0, 1, 10);
-b_values = linspace(0, 1, 10);
+a_values = linspace(0, 0.2, 10);
+b_values = linspace(0, 0.2, 10);
 
 % Initialize result matrices
 num_a = length(a_values);
@@ -28,11 +28,11 @@ for i = 1:num_a
     for j = 1:num_b
 
         % Time dependant parameters
-        a_func = @(t, a0, a1) a_values(i);
-        b_func = @(t, b0, b1) b_values(j);
+        a_func = @(t, a0, a1) 0.3;
+        b_func = @(t, b0, b1) 0.3;
 
         % Run simulation
-        [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(a_func, b_func, beta, theta, sims);
+        [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(a_func, b_func, beta, theta, a_values(i), b_values(j), sims);
 
         % Store mean objective values
         leader_results(i, j) = mean(obj_leader);
