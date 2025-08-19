@@ -14,6 +14,9 @@ theta_values = linspace(-0.5, 0.5, 50);  % Finer resolution if needed
 % Fixed variables
 beta = 0.05; 
 
+phi = 0.02;
+gamma = 0.01;
+
 % Time dependant variables
 a_func = @(t, a0, a1) 0.3;
 b_func = @(t, b0, b1) 0.3;
@@ -30,7 +33,7 @@ for j = 1:num_theta
     theta = theta_values(j);
     
     % Run simulation
-    [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(a_func, b_func, beta, theta, sims);
+    [~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, ~, obj_follower, obj_leader] = MM_Matrix(a_func, b_func, beta, theta, phi, gamma, sims);
 
     % Store results
     leader_results(j) = mean(obj_leader);

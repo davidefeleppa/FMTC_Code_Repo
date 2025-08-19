@@ -1,6 +1,6 @@
-%% Evaluate MM_Matrix over a Grid of (a, beta) for 4 different theta values
+%% Evaluate MM_Matrix over a Grid of (a, beta) for 3 different theta values
 % This script evaluates MM_Matrix over a grid of a(t) & beta pairs for multiple theta values
-% and plots the leader objective contour plots in 4 subplots.
+% and plots the leader objective contour plots in 3 subplots on a single line.
 
 % For reproducibility
 rng(0);
@@ -9,15 +9,15 @@ rng(0);
 sims = 10000;
 
 % Fixed Variables
-phi_float = 0.02;  % Penalty parameter
-gamma_float = 0.01; % Penalty parameter
+phi_float = 0.1;  % Penalty parameter
+gamma_float = 0.03; % Penalty parameter
 
 % Parameter Ranges
-a_values = linspace(0, 0.5, 10);  % a values (b will equal a)
-beta_values = linspace(0, 0.3, 10);  % beta values
+a_values = linspace(0, 1.0, 25);  % a values (b will equal a)
+beta_values = linspace(0, 1.0, 25);  % beta values
 
-% Different theta values to test
-theta_values = [-0.20, -0.10, 0.10, 0.20];
+% Different theta values to test (reduced to 3)
+theta_values = [0.0, 0.10, 0.50];
 
 % Initialize result matrices for each theta
 num_a = length(a_values);
@@ -65,19 +65,22 @@ end
 % Meshgrid for surface plotting
 [AA, BB] = meshgrid(a_values, beta_values);
 
-% Create figure with 4 subplots for leader contour plots
-figure('Position', [100, 100, 1200, 800]);
+% Create figure with 3 subplots in a single row for leader contour plots
+figure('Position', [100, 100, 1800, 500]);
 
 for k = 1:num_theta
-    subplot(2, 2, k);
+    subplot(1, 3, k);
     
     % Create contour plot for leader objective function
     contourf(AA, BB, leader_results(:, :, k)', 20, 'LineColor', 'none');
     colormap(jet);
     colorbar;
-    xlabel('a (= b)', 'FontWeight', 'bold');
-    ylabel('$\beta$', 'FontWeight', 'bold');
-    % title(sprintf('Leader Objective (θ = %.3f)', theta_values(k)), 'FontWeight', 'bold');
+    
+    % Set labels with LaTeX interpreter
+    xlabel('$a$ (= $b$)', 'Interpreter', 'latex', 'FontSize', 12, 'FontWeight', 'bold');
+    ylabel('$\beta$', 'Interpreter', 'latex', 'FontSize', 12, 'FontWeight', 'bold');
+    % title(sprintf('$\\theta = %.2f$', theta_values(k)), 'Interpreter', 'latex', 'FontSize', 14, 'FontWeight', 'bold');
+    
     grid on;
     hold on;
     [C,h] = contour(AA, BB, leader_results(:, :, k)', 10, 'k-');
@@ -87,17 +90,20 @@ for k = 1:num_theta
     % Find and mark optimal point for this theta
     [max_val, max_idx] = max(leader_results(:, :, k), [], 'all');
     [opt_i, opt_j] = ind2sub(size(leader_results(:, :, k)), max_idx);
-    %hold on;
-    %plot(a_values(opt_i), beta_values(opt_j), 'r*', 'MarkerSize', 15, 'LineWidth', 3);
-    %hold off;
+    
+    % Uncomment to mark optimal points
+    % hold on;
+    % plot(a_values(opt_i), beta_values(opt_j), 'r*', 'MarkerSize', 15, 'LineWidth', 3);
+    % hold off;
     
     % Print optimal values
     fprintf('θ=%.3f: Optimal a=%.3f, β=%.3f, objective=%.3f\n', ...
         theta_values(k), a_values(opt_i), beta_values(opt_j), max_val);
 end
 
-% Add overall title
-%sgtitle('Leader Objective Function for Different θ Values', 'FontSize', 16, 'FontWeight', 'bold');
+% Add overall title with LaTeX interpreter
+% sgtitle('Leader Objective Function for Different $\theta$ Values', ...
+%    'Interpreter', 'latex', 'FontSize', 16, 'FontWeight', 'bold');
 
 % Create summary table of optimal values
 fprintf('\n=== SUMMARY OF OPTIMAL VALUES ===\n');

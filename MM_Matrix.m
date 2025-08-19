@@ -14,8 +14,8 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, delta_tildes_a, delta_tildes_b, 
     lambda_0 = 10;
 
     % Penalties
-    phi = 0.02; %0.1
-    gamma = 0.01; % 0.03
+    phi_L = 0.02; %0.1 % 0.02
+    gamma_L = 0.01; % 0.03 % 0.01
     
     % Time scale
     T = 1;
@@ -96,13 +96,13 @@ function [time, Q, Q_tilde, deltas_a, deltas_b, delta_tildes_a, delta_tildes_b, 
     final_price_follower = S(:,end) - beta*Q_tilde(:,end) - theta*Q(:,end) + 0.5*(a_func(T) - b_func(T));
     pnl = X(:,end) + Q(:,end).*final_price_follower;
     intQ = sum(Q.^2, 2)*dt/T; 
-    obj_follower = pnl - gamma*Q(:,end).^2 - phi*intQ;
+    obj_follower = pnl - gamma_float*Q(:,end).^2 - phi_float*intQ;
     
     % For leader
     final_price_leader = S(:,end);
     pnl_tilde = X_tilde(:,end) + Q_tilde(:,end).*final_price_leader;
     intQ_tilde = sum(Q_tilde.^2, 2)*dt/T;
-    obj_leader = pnl_tilde - gamma*Q_tilde(:,end).^2 - phi*intQ_tilde;
+    obj_leader = pnl_tilde - gamma_L*Q_tilde(:,end).^2 - phi_L*intQ_tilde;
         
 end
 
@@ -142,10 +142,10 @@ function omega_t = calculate_omega_t(t, qmax, phi, kappa, theta, lambda_a, lambd
     % Matrix exponential and multiplication
     omega_t = expm(A_matrix*(T-t)) * B_matrix;
 
-    if (sum(omega_t < 0) > 0)
-        omega_t = 0;
-        warning("Omega negative for given parameters");
-    end
+    %if (sum(omega_t < 0) > 0)
+    %    omega_t = 0;
+    %    warning("Omega negative for given parameters");
+    %end
 
 end
 
